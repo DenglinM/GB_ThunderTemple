@@ -37,7 +37,8 @@ public class GB_ThunderTemple : ModuleRules
 			"GB_ThunderTemple/Variant_SideScrolling/AI",
 			"GB_ThunderTemple/Variant_SideScrolling/Gameplay",
 			"GB_ThunderTemple/Variant_SideScrolling/Interfaces",
-			"GB_ThunderTemple/Variant_SideScrolling/UI"
+			"GB_ThunderTemple/Variant_SideScrolling/UI",
+			"GB_ThunderTemple/ThunderTemple"
 		});
 
 		// Uncomment if you are using Slate UI
