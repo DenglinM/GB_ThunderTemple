@@ -1,11 +1,11 @@
 """Hand-drawn plan (plan.jpg, 2000px-wide view) -> UE gray box blocks.
 Plan px -> world: origin at goal centre (750,330); 1 px = 0.1 m; up in image = UE +X, right = UE +Y.
-Output rows: [label, folder, mat, x, y, z, sx, sy, sz, yaw, pitch] (cm / scale in m / deg)."""
+Output rows: [label, folder, mat, x, y, z, sx, sy, sz, yaw, pitch, mesh] (cm / scale in m / deg)."""
 import json, math
 
 S = 0.1          # m per px
 O = (750, 330)   # goal centre in px
-Z_B1, Z_CORE, Z_LVL, Z_META = -4.0, 0.0, 6.0, 9.0
+Z_B1, Z_CORE, Z_LVL, Z_META = -4.0, 0.0, 10.0, 13.0
 T = 1.0          # platform thickness (m)
 
 rows = []
@@ -16,10 +16,43 @@ def w(p):  # px -> (X, Y) metres
     return ((O[1] - p[1]) * S, (p[0] - O[0]) * S)
 
 
-def add(name, folder, mat, cx, cy, cz, sx, sy, sz, yaw=0.0, pitch=0.0):
+def add(name, folder, mat, cx, cy, cz, sx, sy, sz, yaw=0.0, pitch=0.0, mesh="Cube"):
     cnt[name] = cnt.get(name, 0) + 1
     rows.append([f"GB_{name}_{cnt[name]:02d}", folder, mat, round(cx * 100, 1), round(cy * 100, 1),
-                 round(cz * 100, 1), round(sx, 3), round(sy, 3), round(sz, 3), round(yaw, 2), round(pitch, 2)])
+                 round(cz * 100, 1), round(sx, 3), round(sy, 3), round(sz, 3), round(yaw, 2), round(pitch, 2),
+                 mesh])
+
+
+def ramp(pts_px, z0, z1):
+    """Assign heights along a px polyline, interpolated by horizontal distance."""
+    d = [0.0]
+    for a, b in zip(pts_px, pts_px[1:]):
+        d.append(d[-1] + math.dist(a, b))
+    return [(u, v, z0 + (z1 - z0) * di / d[-1]) for (u, v), di in zip(pts_px, d)]
+
+
+def helix(name, folder, centre_px, r, a0, sweep, z0, z1, width=2.5, n=40, wall_h=2.5):
+    """Spiral corridor: walkway segments + outer wall + central column. Angles in deg, world frame."""
+    cx, cy = w(centre_px)
+    pt = lambda a, rr: (cx + rr * math.cos(math.radians(a)), cy + rr * math.sin(math.radians(a)))
+    for i in range(n):
+        a, b = a0 + sweep * i / n, a0 + sweep * (i + 1) / n
+        za, zb = z0 + (z1 - z0) * i / n, z0 + (z1 - z0) * (i + 1) / n
+        (xa, ya), (xb, yb) = pt(a, r), pt(b, r)
+        dh = math.hypot(xb - xa, yb - ya)
+        yaw = math.degrees(math.atan2(yb - ya, xb - xa))
+        pitch = math.degrees(math.atan2(zb - za, dh))
+        add(name, folder, "floor", (xa + xb) / 2, (ya + yb) / 2, (za + zb) / 2 - T / 2,
+            math.hypot(dh, zb - za) * 1.1, width, T, yaw, pitch)
+        if i < 2 or i >= n - 2:   # leave openings where the entry/exit connectors attach
+            continue
+        (wa, wb) = pt(a, r + width / 2 + 0.2), pt(b, r + width / 2 + 0.2)
+        add(name + "Wall", folder, "wall", (wa[0] + wb[0]) / 2, (wa[1] + wb[1]) / 2, (za + zb) / 2 + wall_h / 2,
+            math.hypot(wb[0] - wa[0], wb[1] - wa[1]) * 1.05, 0.4, wall_h, yaw)
+    col_r = r - width / 2 - 0.3
+    add(name + "Column", folder, "wall", cx, cy, (z0 + z1 + wall_h) / 2, col_r * 2, col_r * 2,
+        z1 + wall_h - z0, mesh="Cylinder")
+    return pt(a0, r), pt(a0 + sweep, r)
 
 
 def platform(name, folder, poly_px, ztop, mat="floor", step=1.0):
@@ -93,15 +126,27 @@ for c in [(865, 377), (845, 465)]:
     add("CorePillar", F, "wall", x, y, Z_CORE + 1.0, 1.2, 1.2, 2.0)
 
 # --- Ascent to Level1 --------------------------------------------------------
-F = "04_Ascent"
-path("Ascent", F, [(585, 480, Z_CORE), (565, 400, 3.0), (558, 320, Z_LVL), (528, 300, Z_LVL)], width=2.5)
+F = "04_SpiralAscent"
+ENTRY, HC, HR = (585, 480), (552, 400), 6.0       # entrance kept where the old ramp started
+ex, ey = w(ENTRY)
+hx, hy = w(HC)
+A0 = math.degrees(math.atan2(ey - hy, ex - hx))
+EXIT_TO = (510, 322)                                # landing on Level1
+lx, ly = w(EXIT_TO)
+A1 = math.degrees(math.atan2(ly - hy, lx - hx)) % 360
+SWEEP = (A1 - A0) % 360 + 360                       # ~1.5 turns
+(sx0, sy0), (sx1, sy1) = helix("Spiral", F, HC, HR, A0, SWEEP, Z_CORE, Z_LVL)
+to_px = lambda x, y: (O[0] + y / S, O[1] - x / S)
+path("SpiralEntry", F, [(*ENTRY, Z_CORE), (*to_px(sx0, sy0), Z_CORE)], width=2.5)
+path("SpiralExit", F, [(*to_px(sx1, sy1), Z_LVL), (*EXIT_TO, Z_LVL)], width=2.5)
 
-# --- Level 1-3 (2F), linking paths, CPs ---------------------------------------
+# --- Level 1-3 (upper floor), linking paths, CPs ------------------------------
 F = "05_Level1"
-platform("Level1", F, [(450, 250), (500, 235), (532, 250), (532, 320), (510, 380), (480, 430),
+platform("Level1", F, [(450, 250), (500, 235), (532, 250), (530, 312), (495, 330), (472, 370), (465, 420),
                        (450, 465), (410, 465), (385, 440), (370, 390), (390, 330), (420, 280)], Z_LVL)
-path("ToMeta", F, [(470, 245, Z_LVL), (465, 185, 7.0), (490, 140, 8.0), (530, 112, Z_META)], width=2.0)
-pad("CP2", F, (465, 185), 7.0, size=2.0)
+meta = ramp([(470, 245), (465, 185), (490, 140), (530, 112)], Z_LVL, Z_META)
+path("ToMeta", F, meta, width=2.0)
+pad("CP2", F, (465, 185), meta[1][2], size=2.0)
 F = "06_Level2"
 path("L1toL2", F, [(430, 462, Z_LVL), (440, 520, Z_LVL), (455, 570, Z_LVL), (460, 605, Z_LVL)], width=2.5)
 pad("CP3", F, (455, 570), Z_LVL, size=2.5)
@@ -114,9 +159,10 @@ pad("CP4", F, (880, 665), Z_LVL, size=2.5)
 platform("Level3", F, [(890, 620), (920, 560), (960, 500), (1000, 450), (1030, 400), (1080, 385),
                        (1130, 410), (1140, 460), (1135, 530), (1120, 600), (1060, 640), (1000, 665),
                        (950, 670), (900, 650)], Z_LVL)
-path("L3toGoal", F, [(1085, 395, Z_LVL), (1088, 340, Z_LVL), (1045, 300, 4.0), (1000, 285, 2.0),
-                     (952, 280, Z_CORE)], width=2.5)
-pad("CP5", F, (1045, 300), 4.0, size=2.5)
+down = ramp([(1085, 395), (1100, 330), (1085, 270), (1040, 240), (990, 235), (955, 255), (945, 282)],
+            Z_LVL, Z_CORE)
+path("L3toGoal", F, down, width=2.5)
+pad("CP5", F, (1040, 240), down[3][2], size=2.5)
 
 # --- Meta level area placeholder ---------------------------------------------
 F = "08_MetaArea"
