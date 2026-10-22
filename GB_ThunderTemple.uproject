@@ -54,6 +54,10 @@
 		{
 			"Name": "CodeView",
 			"Enabled": true
+		},
+		{
+			"Name": "DatasmithImporter",
+			"Enabled": true
 		}
 	]
 }
