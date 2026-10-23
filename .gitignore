@@ -28,3 +28,25 @@ Thumbs.db
 .claude/settings.local.json
 *.slnx
 UpgradeLog.htm
+
+# Game Animation Sample content added from Fab (5.6 GB); only the retargeted crouch anims in Content/ThunderTemple/Anims are used
+/GameAnimationSample.uproject
+/Config/DefaultDeviceProfiles.ini
+/Config/DefaultGameplayTags.ini
+/Config/DefaultNetworkPrediction.ini
+/Content/Audio/
+/Content/Blueprints/
+/Content/Characters/Echo/
+/Content/Characters/Paragon/
+/Content/Characters/UE4_Mannequin/
+/Content/Characters/UE5_Mannequins/
+/Content/Characters/UEFN_Mannequin/
+/Content/Input/*.uasset
+/Content/Input/MobileHUD/
+/Content/IsolatedExamples/
+/Content/Levels/
+/Content/MetaHumans/
+/Content/Misc/
+/Content/Movies/
+/Content/Widgets/
+*.udatasmithbak
