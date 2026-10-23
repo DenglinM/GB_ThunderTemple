@@ -12,8 +12,9 @@ class UMaterialInterface;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStalkerStateEvent, bool, bActive);
 
 /**
- *  Blind stalker enemy. Gray-box stand-in for now: it walks a patrol loop, a lightning strike nearby
- *  pauses it, and it resumes when that strike's thunder arrives. Hearing and chasing come later.
+ *  Stalker enemy, gray-box stand-in. It walks a patrol loop or stands guard; if set to chase, it hunts the player
+ *  on sight (a crouched player is spotted from closer only) and sends them back to their checkpoint on contact.
+ *  A lightning strike nearby pauses it until that strike's thunder arrives.
  */
 UCLASS()
 class AStalker : public ACharacter
@@ -49,6 +50,39 @@ protected:
 	int32 PatrolIndex = 0;
 
 	FTimerHandle PatrolTimer;
+
+	/** If true, the stalker chases the player while it can see them */
+	UPROPERTY(EditAnywhere, Category="Stalker|Chase")
+	bool bChasePlayer = false;
+
+	/** Detection range for a standing player, in cm. 0: no distance limit, only line of sight */
+	UPROPERTY(EditAnywhere, Category="Stalker|Chase", meta = (ClampMin = 0, Units = "cm"))
+	float DetectionRadius = 1500.0f;
+
+	/** Detection range multiplier while the player is crouched */
+	UPROPERTY(EditAnywhere, Category="Stalker|Chase", meta = (ClampMin = 0, ClampMax = 1))
+	float CrouchDetectionScale = 0.5f;
+
+	/** Chase speed as a multiple of the player's walking speed */
+	UPROPERTY(EditAnywhere, Category="Stalker|Chase", meta = (ClampMin = 0))
+	float ChaseSpeedMultiplier = 1.2f;
+
+	/** Distance at which the player is caught and sent back to their checkpoint, in cm */
+	UPROPERTY(EditAnywhere, Category="Stalker|Chase", meta = (ClampMin = 0, Units = "cm"))
+	float CatchRadius = 120.0f;
+
+	/** Optional area (e.g. a Trigger Box) the player must be inside before the stalker hunts them */
+	UPROPERTY(EditAnywhere, Category="Stalker|Chase")
+	TObjectPtr<AActor> ActivationArea;
+
+	/** True while chasing the player or heading to where they were last seen */
+	bool bChasing = false;
+
+	/** Where the player was last seen */
+	FVector LastSeenLocation = FVector::ZeroVector;
+
+	/** Where a non-patrolling stalker returns after losing the player */
+	FVector HomeLocation = FVector::ZeroVector;
 
 	/** Body material while active */
 	UPROPERTY(EditAnywhere, Category="Stalker")
@@ -92,8 +126,14 @@ protected:
 
 	virtual void BeginPlay() override;
 
-	/** Steers towards the current patrol point; reschedules itself every frame */
+	/** Chases, patrols or returns home; reschedules itself every frame */
 	void PatrolStep();
+
+	/** True if the player is inside the activation area, within detection range and in clear line of sight */
+	bool CanSeePlayer(const ACharacter* Player) const;
+
+	/** Walks towards a point on the ground plane; returns the remaining distance */
+	float WalkTowards(const FVector& Target);
 
 	/** Switches movement, AI and visuals to the given state */
 	void SetActive(bool bNewActive);

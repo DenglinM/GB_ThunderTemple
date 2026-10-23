@@ -8,6 +8,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "ThunderCheckpointSubsystem.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -38,13 +40,17 @@ void AStalker::BeginPlay()
 
 	GetCharacterMovement()->MaxWalkSpeed = PatrolSpeed;
 
+	// never chase or patrol off a platform edge
+	GetCharacterMovement()->bCanWalkOffLedges = false;
+	HomeLocation = GetActorLocation();
+
 	WorldPatrol.Reset();
 	for (const FVector& Point : PatrolPoints)
 	{
 		WorldPatrol.Add(GetActorTransform().TransformPosition(Point));
 	}
 
-	if (WorldPatrol.Num() > 0)
+	if (WorldPatrol.Num() > 0 || bChasePlayer)
 	{
 		GetWorldTimerManager().SetTimerForNextTick(this, &AStalker::PatrolStep);
 	}
@@ -52,23 +58,103 @@ void AStalker::BeginPlay()
 
 void AStalker::PatrolStep()
 {
-	if (bActive && WorldPatrol.Num() > 0)
-	{
-		FVector ToTarget = WorldPatrol[PatrolIndex] - GetActorLocation();
-		ToTarget.Z = 0.0f;
+	// keep stepping every frame, also while paused so the stalker picks up again on resume
+	GetWorldTimerManager().SetTimerForNextTick(this, &AStalker::PatrolStep);
 
-		if (ToTarget.Size() < AcceptRadius)
+	if (!bActive)
+	{
+		return;
+	}
+
+	ACharacter* Player = UGameplayStatics::GetPlayerCharacter(this, 0);
+
+	// hunt the player on sight
+	if (bChasePlayer && Player && CanSeePlayer(Player))
+	{
+		if (!bChasing)
+		{
+			UE_LOG(LogTemp, Log, TEXT("Stalker %s: spotted the player"), *GetActorNameOrLabel());
+		}
+		bChasing = true;
+		LastSeenLocation = Player->GetActorLocation();
+		GetCharacterMovement()->MaxWalkSpeed = Player->GetCharacterMovement()->MaxWalkSpeed * ChaseSpeedMultiplier;
+
+		if (WalkTowards(LastSeenLocation) < CatchRadius + GetCapsuleComponent()->GetScaledCapsuleRadius())
+		{
+			UE_LOG(LogTemp, Log, TEXT("Stalker %s: caught the player"), *GetActorNameOrLabel());
+			if (UThunderCheckpointSubsystem* Checkpoints = GetWorld()->GetSubsystem<UThunderCheckpointSubsystem>())
+			{
+				Checkpoints->Respawn(Player);
+			}
+			bChasing = false;
+		}
+		return;
+	}
+
+	// lost sight: go and check where the player was last seen
+	if (bChasing)
+	{
+		if (WalkTowards(LastSeenLocation) < AcceptRadius)
+		{
+			UE_LOG(LogTemp, Log, TEXT("Stalker %s: lost the player"), *GetActorNameOrLabel());
+			bChasing = false;
+		}
+		return;
+	}
+
+	GetCharacterMovement()->MaxWalkSpeed = PatrolSpeed;
+
+	if (WorldPatrol.Num() > 0)
+	{
+		if (WalkTowards(WorldPatrol[PatrolIndex]) < AcceptRadius)
 		{
 			PatrolIndex = (PatrolIndex + 1) % WorldPatrol.Num();
 		}
-		else
+	}
+	else
+	{
+		// guards go back to their post
+		WalkTowards(HomeLocation);
+	}
+}
+
+float AStalker::WalkTowards(const FVector& Target)
+{
+	FVector ToTarget = Target - GetActorLocation();
+	ToTarget.Z = 0.0f;
+
+	const float Distance = ToTarget.Size();
+	if (Distance > AcceptRadius * 0.5f)
+	{
+		AddMovementInput(ToTarget.GetSafeNormal());
+	}
+	return Distance;
+}
+
+bool AStalker::CanSeePlayer(const ACharacter* Player) const
+{
+	if (ActivationArea && !ActivationArea->IsOverlappingActor(Player))
+	{
+		return false;
+	}
+
+	// crouching shrinks the range at which the player is noticed
+	if (DetectionRadius > 0.0f)
+	{
+		const float Range = DetectionRadius * (Player->bIsCrouched ? CrouchDetectionScale : 1.0f);
+		if (FVector::Dist(Player->GetActorLocation(), GetActorLocation()) > Range)
 		{
-			AddMovementInput(ToTarget.GetSafeNormal());
+			return false;
 		}
 	}
 
-	// keep stepping every frame, also while paused so the patrol picks up again on resume
-	GetWorldTimerManager().SetTimerForNextTick(this, &AStalker::PatrolStep);
+	// line of sight from the top of the stalker to the player's head; cover and walls block it
+	const FVector Eye = GetActorLocation() + FVector(0.0f, 0.0f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - 10.0f);
+	const FVector Head = Player->GetPawnViewLocation();
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(StalkerSight), false, this);
+	Params.AddIgnoredActor(Player);
+	return !GetWorld()->LineTraceTestByChannel(Eye, Head, ECC_Visibility, Params);
 }
 
 void AStalker::OnConstruction(const FTransform& Transform)

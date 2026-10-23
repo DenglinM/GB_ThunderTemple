@@ -49,6 +49,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* MouseLookAction;
 
+	/** Crouch Input Action, held to stay crouched */
+	UPROPERTY(EditAnywhere, Category="Input")
+	UInputAction* CrouchAction;
+
+	/** Brass lightning plates carried; each can be thrown later to call one extra strike */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Inventory")
+	int32 BrassPlates = 0;
+
 public:
 
 	/** Constructor */
@@ -90,6 +98,26 @@ public:
 	/** Handles jump pressed inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpEnd();
+
+	/** Starts crouching */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void DoCrouchStart();
+
+	/** Stops crouching */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void DoCrouchEnd();
+
+	/** Adds brass plates to the inventory */
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	void AddBrassPlates(int32 Count = 1);
+
+	/** Removes one brass plate; returns false if none are carried */
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	bool UseBrassPlate();
+
+	/** Number of brass plates carried */
+	UFUNCTION(BlueprintPure, Category="Inventory")
+	int32 GetBrassPlates() const { return BrassPlates; }
 
 public:
 

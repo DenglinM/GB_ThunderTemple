@@ -12,6 +12,9 @@
 #include "InputActionValue.h"
 #include "GB_ThunderTemple.h"
 #include "ThunderCheckpointSubsystem.h"
+#include "Engine/Engine.h"
+#include "InputAction.h"
+#include "UObject/ConstructorHelpers.h"
 
 AGB_ThunderTempleCharacter::AGB_ThunderTempleCharacter()
 {
@@ -36,6 +39,13 @@ AGB_ThunderTempleCharacter::AGB_ThunderTempleCharacter()
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 
+	// crouching: held on Ctrl, slower and lower so cover hides the head
+	GetCharacterMovement()->GetNavAgentPropertiesRef().bCanCrouch = true;
+	GetCharacterMovement()->MaxWalkSpeedCrouched = 250.0f;
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> CrouchActionAsset(TEXT("/Game/Input/Actions/IA_Crouch.IA_Crouch"));
+	CrouchAction = CrouchActionAsset.Object;
+
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -54,6 +64,9 @@ AGB_ThunderTempleCharacter::AGB_ThunderTempleCharacter()
 void AGB_ThunderTempleCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// the character blueprint may carry an older value
+	GetCharacterMovement()->GetNavAgentPropertiesRef().bCanCrouch = true;
 
 	if (UThunderCheckpointSubsystem* Checkpoints = GetWorld()->GetSubsystem<UThunderCheckpointSubsystem>())
 	{
@@ -89,6 +102,10 @@ void AGB_ThunderTempleCharacter::SetupPlayerInputComponent(UInputComponent* Play
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AGB_ThunderTempleCharacter::Look);
+
+		// Crouching
+		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &AGB_ThunderTempleCharacter::DoCrouchStart);
+		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Completed, this, &AGB_ThunderTempleCharacter::DoCrouchEnd);
 	}
 	else
 	{
@@ -154,4 +171,36 @@ void AGB_ThunderTempleCharacter::DoJumpEnd()
 {
 	// signal the character to stop jumping
 	StopJumping();
+}
+
+void AGB_ThunderTempleCharacter::DoCrouchStart()
+{
+	Crouch();
+}
+
+void AGB_ThunderTempleCharacter::DoCrouchEnd()
+{
+	UnCrouch();
+}
+
+void AGB_ThunderTempleCharacter::AddBrassPlates(int32 Count)
+{
+	BrassPlates += Count;
+	UE_LOG(LogTemp, Log, TEXT("%s: picked up a brass plate, now carrying %d"), *GetActorNameOrLabel(), BrassPlates);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.5f, FColor::Yellow, FString::Printf(TEXT("Brass plate x%d"), BrassPlates));
+	}
+}
+
+bool AGB_ThunderTempleCharacter::UseBrassPlate()
+{
+	if (BrassPlates <= 0)
+	{
+		return false;
+	}
+
+	--BrassPlates;
+	return true;
 }
