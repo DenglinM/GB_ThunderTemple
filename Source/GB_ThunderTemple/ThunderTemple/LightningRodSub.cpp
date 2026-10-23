@@ -191,9 +191,19 @@ void ALightningRodSub::FlickerTick()
 void ALightningRodSub::Thunder(float Delay)
 {
 	// the thunder comes from the main rod so it pulls the player's eye there
-	if (ThunderSound)
+	const FVector SoundLocation = MainRod ? MainRod->GetStrikeOrigin() : GetStrikeTarget();
+	if (ThunderSounds.Num() > 0)
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, ThunderSound, MainRod ? MainRod->GetStrikeOrigin() : GetStrikeTarget());
+		const FThunderSample& Sample = ThunderSounds[FMath::RandRange(0, ThunderSounds.Num() - 1)];
+		if (Sample.Sound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, Sample.Sound, SoundLocation, 1.0f, 1.0f, Sample.StartTime);
+			UE_LOG(LogTemp, Log, TEXT("LightningRod %s: playing %s from %.1f s"), *GetActorNameOrLabel(), *Sample.Sound->GetName(), Sample.StartTime);
+		}
+	}
+	else if (ThunderSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, ThunderSound, SoundLocation);
 	}
 
 	const float Duration = GetThunderDuration();
@@ -210,8 +220,8 @@ void ALightningRodSub::Thunder(float Delay)
 
 float ALightningRodSub::GetThunderDuration() const
 {
-	// a real sound sets the length; until then use the placeholder duration
-	return ThunderSound ? ThunderSound->GetDuration() : ThunderDuration;
+	// fixed, so the gate timing does not depend on which sample plays
+	return ThunderDuration;
 }
 
 bool ALightningRodSub::CanStrike() const

@@ -15,6 +15,21 @@ class USoundBase;
 class UMaterialInterface;
 class UPrimitiveComponent;
 
+/** One thunder sample and where to start playing it */
+USTRUCT(BlueprintType)
+struct FThunderSample
+{
+	GENERATED_BODY()
+
+	/** Sound to play */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Thunder")
+	TObjectPtr<USoundBase> Sound;
+
+	/** Seconds skipped at the start, to line the peak up with the moment the thunder arrives */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Thunder", meta = (ClampMin = 0, Units = "s"))
+	float StartTime = 0.0f;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLightningRodEvent, float, ThunderDelay);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FLightningRodThunderEvent, float, ThunderDelay, float, ThunderDuration);
 
@@ -85,13 +100,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Lightning Rod|Effects")
 	TObjectPtr<UMaterialInterface> BoltMaterial;
 
-	/** Sound played at the main rod when the thunder arrives */
+	/** Sound played at the main rod when the thunder arrives, if no samples are listed */
 	UPROPERTY(EditAnywhere, Category="Lightning Rod|Effects")
 	TObjectPtr<USoundBase> ThunderSound;
 
-	/** How long the thunder lasts when no sound is set; with a sound, its length is used */
+	/** Thunder samples; one is picked at random for each strike and played in full */
+	UPROPERTY(EditAnywhere, Category="Lightning Rod|Effects")
+	TArray<FThunderSample> ThunderSounds;
+
+	/** How long the thunder counts as sounding (gates stay open this long), independent of the sample length */
 	UPROPERTY(EditAnywhere, Category="Lightning Rod|Effects", meta = (ClampMin = 0.1, Units = "s"))
-	float ThunderDuration = 3.0f;
+	float ThunderDuration = 2.0f;
 
 	/** Prints the bolt length and thunder delay on screen when striking */
 	UPROPERTY(EditAnywhere, Category="Lightning Rod|Debug")
