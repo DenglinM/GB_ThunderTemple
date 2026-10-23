@@ -86,8 +86,25 @@ void AStalker::PatrolStep()
 			{
 				Checkpoints->Respawn(Player);
 			}
+
+			// reset the encounter: the stalker goes back to where it started, so it is never waiting on the checkpoint
 			bChasing = false;
+			PatrolIndex = 0;
+			GetCharacterMovement()->StopMovementImmediately();
+			TeleportTo(HomeLocation, GetActorRotation(), false, true);
+
+			// give the respawned player a few seconds before the hunt starts again
+			SetActive(false);
+			GetWorldTimerManager().SetTimer(ResumeTimer, this, &AStalker::Resume, 3.0f, false);
 		}
+		return;
+	}
+
+	// a player who ducks out of sight by crouching shakes the stalker off at once
+	if (bChasing && Player && Player->bIsCrouched)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Stalker %s: lost the crouching player"), *GetActorNameOrLabel());
+		bChasing = false;
 		return;
 	}
 
