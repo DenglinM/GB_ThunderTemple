@@ -3,6 +3,7 @@
 
 #include "LightningRodSub.h"
 #include "LightningRodMain.h"
+#include "Stalker.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
@@ -136,7 +137,7 @@ void ALightningRodSub::OnTriggerOverlap(UPrimitiveComponent* OverlappedComponent
 		return;
 	}
 
-	if (CanStrike())
+	if (bTriggerOnApproach && CanStrike())
 	{
 		Strike();
 	}
@@ -156,6 +157,17 @@ void ALightningRodSub::Strike()
 	// show the bolt with a short double flicker
 	FlickerStep = 0;
 	FlickerTick();
+
+	// the lightning hits stalkers standing close to the rod
+	const FVector Base = GetActorLocation();
+	for (TActorIterator<AStalker> It(GetWorld()); It; ++It)
+	{
+		const FVector StalkerLocation = It->GetActorLocation();
+		if (FVector::Dist2D(StalkerLocation, Base) < StrikeRadius && FMath::Abs(StalkerLocation.Z - Base.Z) < PoleHeight)
+		{
+			It->HitByLightning();
+		}
+	}
 
 	// the thunder follows after the delay
 	const float Delay = GetThunderDelay();

@@ -80,6 +80,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Lightning Rod", meta = (ClampMin = 50, Units = "cm"))
 	float TriggerRadius = 400.0f;
 
+	/** If false, the player walking up does not trigger the rod; something else must call Strike */
+	UPROPERTY(EditAnywhere, Category="Lightning Rod")
+	bool bTriggerOnApproach = true;
+
+	/** Stalkers within this ground distance of the rod are hit by its lightning, in cm */
+	UPROPERTY(EditAnywhere, Category="Lightning Rod", meta = (ClampMin = 0, Units = "cm"))
+	float StrikeRadius = 400.0f;
+
 	/** Minimum time between two strikes on this rod */
 	UPROPERTY(EditAnywhere, Category="Lightning Rod", meta = (ClampMin = 0, Units = "s"))
 	float Cooldown = 8.0f;
