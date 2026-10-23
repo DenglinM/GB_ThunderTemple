@@ -56,6 +56,12 @@ public:
 
 protected:
 
+	/** Records the level start as the first respawn point */
+	virtual void BeginPlay() override;
+
+	/** Respawns at the latest checkpoint instead of being destroyed when falling out of the level */
+	virtual void FellOutOfWorld(const class UDamageType& DamageType) override;
+
 	/** Initialize input action bindings */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 

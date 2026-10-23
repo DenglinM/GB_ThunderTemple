@@ -11,6 +11,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "GB_ThunderTemple.h"
+#include "ThunderCheckpointSubsystem.h"
 
 AGB_ThunderTempleCharacter::AGB_ThunderTempleCharacter()
 {
@@ -48,6 +49,29 @@ AGB_ThunderTempleCharacter::AGB_ThunderTempleCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+}
+
+void AGB_ThunderTempleCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (UThunderCheckpointSubsystem* Checkpoints = GetWorld()->GetSubsystem<UThunderCheckpointSubsystem>())
+	{
+		Checkpoints->SetStartIfUnset(GetActorTransform());
+	}
+}
+
+void AGB_ThunderTempleCharacter::FellOutOfWorld(const UDamageType& DamageType)
+{
+	// players go back to their last checkpoint; anything else falls as usual
+	UThunderCheckpointSubsystem* Checkpoints = GetWorld()->GetSubsystem<UThunderCheckpointSubsystem>();
+	if (IsPlayerControlled() && Checkpoints)
+	{
+		Checkpoints->Respawn(this);
+		return;
+	}
+
+	Super::FellOutOfWorld(DamageType);
 }
 
 void AGB_ThunderTempleCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
