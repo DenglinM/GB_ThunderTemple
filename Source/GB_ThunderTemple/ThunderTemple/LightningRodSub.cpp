@@ -12,6 +12,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -135,12 +136,10 @@ void ALightningRodSub::OnTriggerOverlap(UPrimitiveComponent* OverlappedComponent
 		return;
 	}
 
-	if (GetWorld()->GetTimeSeconds() - LastStrikeTime < Cooldown)
+	if (CanStrike())
 	{
-		return;
+		Strike();
 	}
-
-	Strike();
 }
 
 void ALightningRodSub::Strike()
@@ -191,18 +190,32 @@ void ALightningRodSub::FlickerTick()
 
 void ALightningRodSub::Thunder(float Delay)
 {
+	// the thunder comes from the main rod so it pulls the player's eye there
 	if (ThunderSound)
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, ThunderSound, GetStrikeTarget());
+		UGameplayStatics::PlaySoundAtLocation(this, ThunderSound, MainRod ? MainRod->GetStrikeOrigin() : GetStrikeTarget());
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("LightningRod %s: thunder (%.1f s after the lightning)"), *GetActorNameOrLabel(), Delay);
+	const float Duration = GetThunderDuration();
+	UE_LOG(LogTemp, Log, TEXT("LightningRod %s: thunder (%.1f s after the lightning, lasts %.1f s)"), *GetActorNameOrLabel(), Delay, Duration);
 
 	if (bShowTiming && GEngine)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow,
+		GEngine->AddOnScreenDebugMessage(-1, Duration, FColor::Yellow,
 			FString::Printf(TEXT("%s: thunder (%.1f s after the lightning)"), *GetActorNameOrLabel(), Delay));
 	}
 
-	OnThunder.Broadcast(Delay);
+	OnThunder.Broadcast(Delay, Duration);
+}
+
+float ALightningRodSub::GetThunderDuration() const
+{
+	// a real sound sets the length; until then use the placeholder duration
+	return ThunderSound ? ThunderSound->GetDuration() : ThunderDuration;
+}
+
+bool ALightningRodSub::CanStrike() const
+{
+	return !GetWorldTimerManager().IsTimerActive(ThunderTimer)
+		&& GetWorld()->GetTimeSeconds() - LastStrikeTime >= Cooldown;
 }

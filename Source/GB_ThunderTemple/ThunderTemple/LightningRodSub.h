@@ -16,6 +16,7 @@ class UMaterialInterface;
 class UPrimitiveComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLightningRodEvent, float, ThunderDelay);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FLightningRodThunderEvent, float, ThunderDelay, float, ThunderDuration);
 
 /**
  *  A sub lightning rod. When the player comes close, a bolt jumps from the main rod to this rod,
@@ -84,9 +85,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Lightning Rod|Effects")
 	TObjectPtr<UMaterialInterface> BoltMaterial;
 
-	/** Sound played when the thunder arrives */
+	/** Sound played at the main rod when the thunder arrives */
 	UPROPERTY(EditAnywhere, Category="Lightning Rod|Effects")
 	TObjectPtr<USoundBase> ThunderSound;
+
+	/** How long the thunder lasts when no sound is set; with a sound, its length is used */
+	UPROPERTY(EditAnywhere, Category="Lightning Rod|Effects", meta = (ClampMin = 0.1, Units = "s"))
+	float ThunderDuration = 3.0f;
 
 	/** Prints the bolt length and thunder delay on screen when striking */
 	UPROPERTY(EditAnywhere, Category="Lightning Rod|Debug")
@@ -107,9 +112,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="Lightning Rod")
 	FLightningRodEvent OnLightning;
 
-	/** Called when the thunder arrives; passes the delay it had */
+	/** Called when the thunder arrives; passes the delay it had and how long it lasts */
 	UPROPERTY(BlueprintAssignable, Category="Lightning Rod")
-	FLightningRodEvent OnThunder;
+	FLightningRodThunderEvent OnThunder;
 
 	/** Constructor */
 	ALightningRodSub();
@@ -128,6 +133,14 @@ public:
 	/** World position bolts arrive at */
 	UFUNCTION(BlueprintPure, Category="Lightning Rod")
 	FVector GetStrikeTarget() const;
+
+	/** How long the thunder lasts, in seconds */
+	UFUNCTION(BlueprintPure, Category="Lightning Rod")
+	float GetThunderDuration() const;
+
+	/** True if no thunder is pending and the cooldown has passed */
+	UFUNCTION(BlueprintPure, Category="Lightning Rod")
+	bool CanStrike() const;
 
 protected:
 
