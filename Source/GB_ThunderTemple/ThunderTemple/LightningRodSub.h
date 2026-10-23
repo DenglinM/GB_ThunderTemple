@@ -7,6 +7,7 @@
 #include "LightningRodSub.generated.h"
 
 class ALightningRodMain;
+class AStalker;
 class USceneComponent;
 class UStaticMeshComponent;
 class USphereComponent;
@@ -126,6 +127,9 @@ protected:
 
 	/** Time of the last strike */
 	float LastStrikeTime = -1000.0f;
+
+	/** Stalkers paused by the current strike; they resume when its thunder arrives */
+	TArray<TWeakObjectPtr<AStalker>> HitStalkers;
 
 	/** Flicker step counter for the current strike */
 	int32 FlickerStep = 0;

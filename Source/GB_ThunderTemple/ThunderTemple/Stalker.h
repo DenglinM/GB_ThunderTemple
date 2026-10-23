@@ -12,8 +12,8 @@ class UMaterialInterface;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStalkerStateEvent, bool, bActive);
 
 /**
- *  Blind stalker enemy. Gray-box stand-in for now: it has an active state and a paused state,
- *  and a lightning strike nearby pauses it. Hearing and chasing will be added on top of this.
+ *  Blind stalker enemy. Gray-box stand-in for now: it walks a patrol loop, a lightning strike nearby
+ *  pauses it, and it resumes when that strike's thunder arrives. Hearing and chasing come later.
  */
 UCLASS()
 class AStalker : public ACharacter
@@ -26,9 +26,29 @@ class AStalker : public ACharacter
 
 protected:
 
-	/** How long a strike pauses the stalker. 0 keeps it paused for good */
+	/** 0: a strike pauses the stalker until its thunder arrives. Above 0: resume after this many seconds instead */
 	UPROPERTY(EditAnywhere, Category="Stalker", meta = (ClampMin = 0, Units = "s"))
 	float PauseDuration = 0.0f;
+
+	/** Patrol loop, relative to the actor. Empty: the stalker stands still */
+	UPROPERTY(EditAnywhere, Category="Stalker|Patrol", meta = (MakeEditWidget = true))
+	TArray<FVector> PatrolPoints;
+
+	/** Walking speed on patrol, in cm/s */
+	UPROPERTY(EditAnywhere, Category="Stalker|Patrol", meta = (ClampMin = 0, Units = "cm/s"))
+	float PatrolSpeed = 200.0f;
+
+	/** Distance at which a patrol point counts as reached, in cm */
+	UPROPERTY(EditAnywhere, Category="Stalker|Patrol", meta = (ClampMin = 10, Units = "cm"))
+	float AcceptRadius = 80.0f;
+
+	/** Patrol points in world space, captured at BeginPlay */
+	TArray<FVector> WorldPatrol;
+
+	/** Index of the patrol point being walked to */
+	int32 PatrolIndex = 0;
+
+	FTimerHandle PatrolTimer;
 
 	/** Body material while active */
 	UPROPERTY(EditAnywhere, Category="Stalker")
@@ -69,6 +89,11 @@ public:
 	bool IsActive() const { return bActive; }
 
 protected:
+
+	virtual void BeginPlay() override;
+
+	/** Steers towards the current patrol point; reschedules itself every frame */
+	void PatrolStep();
 
 	/** Switches movement, AI and visuals to the given state */
 	void SetActive(bool bNewActive);

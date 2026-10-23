@@ -25,6 +25,50 @@ AStalker::AStalker()
 	Body->SetStaticMesh(CylinderMesh.Object);
 	Body->SetRelativeScale3D(FVector(0.9f, 0.9f, 2.5f));
 	Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// face the walking direction
+	bUseControllerRotationYaw = false;
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->RotationRate = FRotator(0.0f, 270.0f, 0.0f);
+}
+
+void AStalker::BeginPlay()
+{
+	Super::BeginPlay();
+
+	GetCharacterMovement()->MaxWalkSpeed = PatrolSpeed;
+
+	WorldPatrol.Reset();
+	for (const FVector& Point : PatrolPoints)
+	{
+		WorldPatrol.Add(GetActorTransform().TransformPosition(Point));
+	}
+
+	if (WorldPatrol.Num() > 0)
+	{
+		GetWorldTimerManager().SetTimerForNextTick(this, &AStalker::PatrolStep);
+	}
+}
+
+void AStalker::PatrolStep()
+{
+	if (bActive && WorldPatrol.Num() > 0)
+	{
+		FVector ToTarget = WorldPatrol[PatrolIndex] - GetActorLocation();
+		ToTarget.Z = 0.0f;
+
+		if (ToTarget.Size() < AcceptRadius)
+		{
+			PatrolIndex = (PatrolIndex + 1) % WorldPatrol.Num();
+		}
+		else
+		{
+			AddMovementInput(ToTarget.GetSafeNormal());
+		}
+	}
+
+	// keep stepping every frame, also while paused so the patrol picks up again on resume
+	GetWorldTimerManager().SetTimerForNextTick(this, &AStalker::PatrolStep);
 }
 
 void AStalker::OnConstruction(const FTransform& Transform)
@@ -44,8 +88,8 @@ void AStalker::HitByLightning()
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("Stalker %s: hit by lightning, paused%s"), *GetActorNameOrLabel(),
-		PauseDuration > 0.0f ? *FString::Printf(TEXT(" for %.1f s"), PauseDuration) : TEXT(""));
+	UE_LOG(LogTemp, Log, TEXT("Stalker %s: hit by lightning, paused %s"), *GetActorNameOrLabel(),
+		PauseDuration > 0.0f ? *FString::Printf(TEXT("for %.1f s"), PauseDuration) : TEXT("until the thunder"));
 
 	SetActive(false);
 
@@ -58,6 +102,10 @@ void AStalker::HitByLightning()
 void AStalker::Resume()
 {
 	GetWorldTimerManager().ClearTimer(ResumeTimer);
+	if (!bActive)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Stalker %s: resumed"), *GetActorNameOrLabel());
+	}
 	SetActive(true);
 }
 

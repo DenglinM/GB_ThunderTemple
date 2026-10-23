@@ -163,9 +163,10 @@ void ALightningRodSub::Strike()
 	for (TActorIterator<AStalker> It(GetWorld()); It; ++It)
 	{
 		const FVector StalkerLocation = It->GetActorLocation();
-		if (FVector::Dist2D(StalkerLocation, Base) < StrikeRadius && FMath::Abs(StalkerLocation.Z - Base.Z) < PoleHeight)
+		if (FVector::Dist2D(StalkerLocation, Base) < StrikeRadius && FMath::Abs(StalkerLocation.Z - Base.Z) < PoleHeight && It->IsActive())
 		{
 			It->HitByLightning();
+			HitStalkers.Add(*It);
 		}
 	}
 
@@ -217,6 +218,16 @@ void ALightningRodSub::Thunder(float Delay)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, ThunderSound, SoundLocation);
 	}
+
+	// stalkers stunned by this strike move again once its thunder sounds
+	for (const TWeakObjectPtr<AStalker>& Stalker : HitStalkers)
+	{
+		if (Stalker.IsValid())
+		{
+			Stalker->Resume();
+		}
+	}
+	HitStalkers.Reset();
 
 	const float Duration = GetThunderDuration();
 	UE_LOG(LogTemp, Log, TEXT("LightningRod %s: thunder (%.1f s after the lightning, lasts %.1f s)"), *GetActorNameOrLabel(), Delay, Duration);
