@@ -5,6 +5,7 @@
 #include "LightningRodMain.h"
 #include "Stalker.h"
 #include "ThunderGate.h"
+#include "ThunderExit.h"
 #include "AudioDevice.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
@@ -106,6 +107,12 @@ void AThunderFinale::StartFinale()
 	for (TActorIterator<AThunderGate> It(GetWorld()); It; ++It)
 	{
 		It->OpenFor(1.0e6f);
+	}
+
+	// and the way out lights up
+	for (TActorIterator<AThunderExit> It(GetWorld()); It; ++It)
+	{
+		It->Unlock();
 	}
 
 	Flash->SetIntensity(FlashIntensity);

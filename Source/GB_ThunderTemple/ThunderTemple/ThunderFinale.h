@@ -16,7 +16,7 @@ class UMaterialInterface;
 
 /**
  *  The escape at the end. Started when the battery is pulled from the main rod:
- *  the rod discharges and freezes every stalker, the world goes silent and every gate opens.
+ *  the rod discharges and freezes every stalker, the world goes silent, every gate opens and the exit unlocks.
  *  Then the last thunder spreads out from the rod as a slow, visible wave. Stalkers it reaches wake up and hunt the player,
  *  and the player hears again once it catches up with them.
  */
