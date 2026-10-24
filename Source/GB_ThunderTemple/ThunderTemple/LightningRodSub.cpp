@@ -4,6 +4,7 @@
 #include "LightningRodSub.h"
 #include "LightningRodMain.h"
 #include "Stalker.h"
+#include "ThunderAccessPoint.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
@@ -170,6 +171,12 @@ void ALightningRodSub::Strike()
 		}
 	}
 
+	// access points near the strike open their gates
+	for (TActorIterator<AThunderAccessPoint> It(GetWorld()); It; ++It)
+	{
+		It->NotifyLightning(Base);
+	}
+
 	// the thunder follows after the delay
 	const float Delay = GetThunderDelay();
 	FTimerDelegate ThunderDelegate = FTimerDelegate::CreateUObject(this, &ALightningRodSub::Thunder, Delay);
@@ -245,6 +252,28 @@ float ALightningRodSub::GetThunderDuration() const
 {
 	// fixed, so the gate timing does not depend on which sample plays
 	return ThunderDuration;
+}
+
+void ALightningRodSub::SetTriggerOnApproach(bool bEnable)
+{
+	bTriggerOnApproach = bEnable;
+	if (!bEnable)
+	{
+		return;
+	}
+
+	// a player already inside the range would never fire a begin overlap, so check now
+	TArray<AActor*> Overlapping;
+	Trigger->GetOverlappingActors(Overlapping, APawn::StaticClass());
+	for (AActor* Actor : Overlapping)
+	{
+		const APawn* Pawn = Cast<APawn>(Actor);
+		if (Pawn && Pawn->IsPlayerControlled() && CanStrike())
+		{
+			Strike();
+			break;
+		}
+	}
 }
 
 bool ALightningRodSub::CanStrike() const

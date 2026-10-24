@@ -40,6 +40,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Thunder Gate")
 	TArray<TObjectPtr<ALightningRodSub>> Rods;
 
+	/** If false, thunder does not open the gate; only OpenFor does (e.g. from an access point) */
+	UPROPERTY(EditAnywhere, Category="Thunder Gate")
+	bool bOpenOnThunder = true;
+
+	/** If false, a player waiting at the closed gate does not call lightning */
+	UPROPERTY(EditAnywhere, Category="Thunder Gate")
+	bool bCallLightningWhenWaiting = true;
+
 	/** Rod struck when the player waits at the closed gate. If empty, the nearest rod is used */
 	UPROPERTY(EditAnywhere, Category="Thunder Gate")
 	TObjectPtr<ALightningRodSub> WaitRod;

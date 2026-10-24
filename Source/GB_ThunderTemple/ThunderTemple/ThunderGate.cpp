@@ -50,7 +50,7 @@ void AThunderGate::BeginPlay()
 	Super::BeginPlay();
 
 	// with no rods listed, listen to every sub rod in the level
-	if (Rods.IsEmpty())
+	if (Rods.IsEmpty() && (bOpenOnThunder || bCallLightningWhenWaiting))
 	{
 		for (TActorIterator<ALightningRodSub> It(GetWorld()); It; ++It)
 		{
@@ -134,12 +134,15 @@ bool AThunderGate::IsOpen() const
 
 void AThunderGate::OnRodThunder(float ThunderDelay, float ThunderDuration)
 {
-	OpenFor(ThunderDuration);
+	if (bOpenOnThunder)
+	{
+		OpenFor(ThunderDuration);
+	}
 }
 
 void AThunderGate::TryCallLightning()
 {
-	if (!bPlayerWaiting || IsOpen() || !WaitRod || !WaitRod->CanStrike())
+	if (!bCallLightningWhenWaiting || !bPlayerWaiting || IsOpen() || !WaitRod || !WaitRod->CanStrike())
 	{
 		return;
 	}

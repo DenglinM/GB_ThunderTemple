@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "Stalker.generated.h"
 
+class ALightningRodSub;
 class UStaticMeshComponent;
 class UMaterialInterface;
 
@@ -15,6 +16,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStalkerStateEvent, bool, bActive);
  *  Stalker enemy, gray-box stand-in. It walks a patrol loop or stands guard; if set to chase, it hunts the player
  *  on sight (a crouched player is spotted from closer only) and sends them back to their checkpoint on contact.
  *  A lightning strike nearby pauses it until that strike's thunder arrives.
+ *  Noises (a beaten drum) draw it over to listen. With a brass plate attached it becomes a lightning rod itself.
  */
 UCLASS()
 class AStalker : public ACharacter
@@ -84,6 +86,43 @@ protected:
 	/** Where a non-patrolling stalker returns after losing the player */
 	FVector HomeLocation = FVector::ZeroVector;
 
+	/** Speed when walking to a noise, in cm/s */
+	UPROPERTY(EditAnywhere, Category="Stalker|Noise", meta = (ClampMin = 0, Units = "cm/s"))
+	float InvestigateSpeed = 300.0f;
+
+	/** Distance from the noise at which the stalker stops to listen, in cm */
+	UPROPERTY(EditAnywhere, Category="Stalker|Noise", meta = (ClampMin = 10, Units = "cm"))
+	float InvestigateRadius = 200.0f;
+
+	/** Time spent listening at the noise before going back; the player goes unnoticed meanwhile */
+	UPROPERTY(EditAnywhere, Category="Stalker|Noise", meta = (ClampMin = 0, Units = "s"))
+	float ListenTime = 6.0f;
+
+	/** True while walking to or listening at a noise */
+	bool bInvestigating = false;
+
+	/** Where the last noise came from */
+	FVector NoiseLocation = FVector::ZeroVector;
+
+	/** World time the listening ends; below 0 while still walking there */
+	float ListenEndTime = -1.0f;
+
+	/** Rod carried once a brass plate is attached; it is hidden and inactive until then */
+	UPROPERTY(EditAnywhere, Category="Stalker|Brass Plate")
+	TObjectPtr<ALightningRodSub> ConductorRod;
+
+	/** Chase speed multiplier once a brass plate is attached */
+	UPROPERTY(EditAnywhere, Category="Stalker|Brass Plate", meta = (ClampMin = 0))
+	float PlatedChaseSpeedMultiplier = 1.1f;
+
+	/** Body material while active with a brass plate */
+	UPROPERTY(EditAnywhere, Category="Stalker|Brass Plate")
+	TObjectPtr<UMaterialInterface> PlatedMaterial;
+
+	/** True once a brass plate is attached */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stalker|Brass Plate")
+	bool bPlated = false;
+
 	/** Body material while active */
 	UPROPERTY(EditAnywhere, Category="Stalker")
 	TObjectPtr<UMaterialInterface> ActiveMaterial;
@@ -122,6 +161,18 @@ public:
 	UFUNCTION(BlueprintPure, Category="Stalker")
 	bool IsActive() const { return bActive; }
 
+	/** Sends the stalker to listen at a noise */
+	UFUNCTION(BlueprintCallable, Category="Stalker")
+	void HearNoise(const FVector& Location);
+
+	/** Attaches a brass plate: the stalker draws lightning when the player is near and hunts at the plated speed. Returns false if it already has one */
+	UFUNCTION(BlueprintCallable, Category="Stalker")
+	bool AttachBrassPlate();
+
+	/** True once a brass plate is attached */
+	UFUNCTION(BlueprintPure, Category="Stalker")
+	bool HasBrassPlate() const { return bPlated; }
+
 protected:
 
 	virtual void BeginPlay() override;
@@ -137,4 +188,7 @@ protected:
 
 	/** Switches movement, AI and visuals to the given state */
 	void SetActive(bool bNewActive);
+
+	/** Body material for the current state */
+	UMaterialInterface* GetStateMaterial() const;
 };

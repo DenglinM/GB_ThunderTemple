@@ -169,6 +169,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="Lightning Rod")
 	float GetThunderDuration() const;
 
+	/** Turns striking on player approach on or off */
+	UFUNCTION(BlueprintCallable, Category="Lightning Rod")
+	void SetTriggerOnApproach(bool bEnable);
+
 	/** True if no thunder is pending and the cooldown has passed */
 	UFUNCTION(BlueprintPure, Category="Lightning Rod")
 	bool CanStrike() const;

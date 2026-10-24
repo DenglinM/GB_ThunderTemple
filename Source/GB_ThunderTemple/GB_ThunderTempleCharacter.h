@@ -53,6 +53,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* CrouchAction;
 
+	/** Interact Input Action: beat a drum or attach a brass plate to a stalker */
+	UPROPERTY(EditAnywhere, Category="Input")
+	UInputAction* InteractAction;
+
+	/** Reach for interacting with drums and stalkers, in cm */
+	UPROPERTY(EditAnywhere, Category="Input", meta = (ClampMin = 0, Units = "cm"))
+	float InteractRange = 250.0f;
+
 	/** Brass lightning plates carried; each can be thrown later to call one extra strike */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Inventory")
 	int32 BrassPlates = 0;
@@ -106,6 +114,10 @@ public:
 	/** Stops crouching */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoCrouchEnd();
+
+	/** Uses the nearest drum or stalker within reach */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void DoInteract();
 
 	/** Adds brass plates to the inventory */
 	UFUNCTION(BlueprintCallable, Category="Inventory")

@@ -12,6 +12,9 @@
 #include "InputActionValue.h"
 #include "GB_ThunderTemple.h"
 #include "ThunderCheckpointSubsystem.h"
+#include "ThunderDrum.h"
+#include "Stalker.h"
+#include "EngineUtils.h"
 #include "Engine/Engine.h"
 #include "InputAction.h"
 #include "UObject/ConstructorHelpers.h"
@@ -45,6 +48,9 @@ AGB_ThunderTempleCharacter::AGB_ThunderTempleCharacter()
 
 	static ConstructorHelpers::FObjectFinder<UInputAction> CrouchActionAsset(TEXT("/Game/Input/Actions/IA_Crouch.IA_Crouch"));
 	CrouchAction = CrouchActionAsset.Object;
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> InteractActionAsset(TEXT("/Game/Input/Actions/IA_Interact.IA_Interact"));
+	InteractAction = InteractActionAsset.Object;
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -106,6 +112,9 @@ void AGB_ThunderTempleCharacter::SetupPlayerInputComponent(UInputComponent* Play
 		// Crouching
 		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &AGB_ThunderTempleCharacter::DoCrouchStart);
 		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Completed, this, &AGB_ThunderTempleCharacter::DoCrouchEnd);
+
+		// Interacting
+		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &AGB_ThunderTempleCharacter::DoInteract);
 	}
 	else
 	{
@@ -181,6 +190,50 @@ void AGB_ThunderTempleCharacter::DoCrouchStart()
 void AGB_ThunderTempleCharacter::DoCrouchEnd()
 {
 	UnCrouch();
+}
+
+void AGB_ThunderTempleCharacter::DoInteract()
+{
+	// with a plate in hand, a plate-less stalker within reach comes first, since it usually stands at the drum
+	AStalker* Stalker = nullptr;
+	float Best = InteractRange;
+	for (TActorIterator<AStalker> It(GetWorld()); It; ++It)
+	{
+		const float Dist = FVector::Dist2D(It->GetActorLocation(), GetActorLocation());
+		if (!It->HasBrassPlate() && Dist < Best)
+		{
+			Best = Dist;
+			Stalker = *It;
+		}
+	}
+
+	if (Stalker && BrassPlates > 0 && Stalker->AttachBrassPlate())
+	{
+		--BrassPlates;
+		return;
+	}
+
+	// otherwise beat the nearest drum within reach
+	AThunderDrum* Drum = nullptr;
+	Best = InteractRange;
+	for (TActorIterator<AThunderDrum> It(GetWorld()); It; ++It)
+	{
+		const float Dist = FVector::Dist2D(It->GetActorLocation(), GetActorLocation());
+		if (Dist < Best)
+		{
+			Best = Dist;
+			Drum = *It;
+		}
+	}
+
+	if (Drum)
+	{
+		Drum->Beat();
+	}
+	else if (Stalker && GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, TEXT("No brass plate to attach"));
+	}
 }
 
 void AGB_ThunderTempleCharacter::AddBrassPlates(int32 Count)

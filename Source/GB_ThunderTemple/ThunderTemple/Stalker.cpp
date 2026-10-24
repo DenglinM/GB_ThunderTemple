@@ -2,10 +2,12 @@
 
 
 #include "Stalker.h"
+#include "LightningRodSub.h"
 #include "AIController.h"
 #include "BrainComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -50,10 +52,15 @@ void AStalker::BeginPlay()
 		WorldPatrol.Add(GetActorTransform().TransformPosition(Point));
 	}
 
-	if (WorldPatrol.Num() > 0 || bChasePlayer)
+	// the conductor rod stays out of play until a plate is attached
+	if (ConductorRod)
 	{
-		GetWorldTimerManager().SetTimerForNextTick(this, &AStalker::PatrolStep);
+		ConductorRod->SetTriggerOnApproach(false);
+		ConductorRod->SetActorHiddenInGame(true);
 	}
+
+	// always step, so a guard can still be drawn away by a noise
+	GetWorldTimerManager().SetTimerForNextTick(this, &AStalker::PatrolStep);
 }
 
 void AStalker::PatrolStep()
@@ -67,6 +74,28 @@ void AStalker::PatrolStep()
 	}
 
 	ACharacter* Player = UGameplayStatics::GetPlayerCharacter(this, 0);
+
+	// a noise takes priority: walk over, listen for a while, ignore the player meanwhile
+	if (bInvestigating)
+	{
+		const float Now = GetWorld()->GetTimeSeconds();
+		if (ListenEndTime < 0.0f)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = InvestigateSpeed;
+			if (WalkTowards(NoiseLocation) < InvestigateRadius)
+			{
+				ListenEndTime = Now + ListenTime;
+				UE_LOG(LogTemp, Log, TEXT("Stalker %s: listening at the noise"), *GetActorNameOrLabel());
+			}
+			return;
+		}
+		if (Now < ListenEndTime)
+		{
+			return;
+		}
+		UE_LOG(LogTemp, Log, TEXT("Stalker %s: done listening"), *GetActorNameOrLabel());
+		bInvestigating = false;
+	}
 
 	// hunt the player on sight
 	if (bChasePlayer && Player && CanSeePlayer(Player))
@@ -89,6 +118,7 @@ void AStalker::PatrolStep()
 
 			// reset the encounter: the stalker goes back to where it started, so it is never waiting on the checkpoint
 			bChasing = false;
+			bInvestigating = false;
 			PatrolIndex = 0;
 			GetCharacterMovement()->StopMovementImmediately();
 			TeleportTo(HomeLocation, GetActorRotation(), false, true);
@@ -178,10 +208,68 @@ void AStalker::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	if (UMaterialInterface* Material = bActive ? ActiveMaterial : PausedMaterial)
+	if (UMaterialInterface* Material = GetStateMaterial())
 	{
 		Body->SetMaterial(0, Material);
 	}
+}
+
+UMaterialInterface* AStalker::GetStateMaterial() const
+{
+	if (!bActive)
+	{
+		return PausedMaterial;
+	}
+	return bPlated && PlatedMaterial ? PlatedMaterial.Get() : ActiveMaterial.Get();
+}
+
+void AStalker::HearNoise(const FVector& Location)
+{
+	UE_LOG(LogTemp, Log, TEXT("Stalker %s: heard a noise"), *GetActorNameOrLabel());
+
+	bInvestigating = true;
+	bChasing = false;
+	NoiseLocation = Location;
+	ListenEndTime = -1.0f;
+}
+
+bool AStalker::AttachBrassPlate()
+{
+	if (bPlated)
+	{
+		return false;
+	}
+
+	bPlated = true;
+	bChasePlayer = true;
+	ChaseSpeedMultiplier = PlatedChaseSpeedMultiplier;
+
+	UE_LOG(LogTemp, Log, TEXT("Stalker %s: brass plate attached"), *GetActorNameOrLabel());
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.5f, FColor::Yellow, TEXT("Brass plate attached: the stalker now draws lightning"));
+	}
+
+	if (UMaterialInterface* Material = GetStateMaterial())
+	{
+		Body->SetMaterial(0, Material);
+	}
+
+	// the rod rides on the stalker; its meshes must not push the stalker or the player around
+	if (ConductorRod)
+	{
+		TArray<UStaticMeshComponent*> RodMeshes;
+		ConductorRod->GetComponents<UStaticMeshComponent>(RodMeshes);
+		for (UStaticMeshComponent* RodMesh : RodMeshes)
+		{
+			RodMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+
+		ConductorRod->AttachToActor(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		ConductorRod->SetActorHiddenInGame(false);
+		ConductorRod->SetTriggerOnApproach(true);
+	}
+	return true;
 }
 
 void AStalker::HitByLightning()
@@ -251,7 +339,7 @@ void AStalker::SetActive(bool bNewActive)
 		}
 	}
 
-	if (UMaterialInterface* Material = bActive ? ActiveMaterial : PausedMaterial)
+	if (UMaterialInterface* Material = GetStateMaterial())
 	{
 		Body->SetMaterial(0, Material);
 	}
