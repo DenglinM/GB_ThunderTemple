@@ -53,7 +53,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* CrouchAction;
 
-	/** Interact Input Action: beat a drum or attach a brass plate to a stalker */
+	/** Interact Input Action: take the battery, beat a drum or attach a brass plate to a stalker */
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* InteractAction;
 

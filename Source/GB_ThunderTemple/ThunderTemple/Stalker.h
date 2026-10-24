@@ -123,6 +123,12 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stalker|Brass Plate")
 	bool bPlated = false;
 
+	/** True while frozen by the finale discharge; only Awaken brings it back */
+	bool bFrozen = false;
+
+	/** True once woken by the finale thunder: it always knows where the player is */
+	bool bRelentless = false;
+
 	/** Body material while active */
 	UPROPERTY(EditAnywhere, Category="Stalker")
 	TObjectPtr<UMaterialInterface> ActiveMaterial;
@@ -172,6 +178,14 @@ public:
 	/** True once a brass plate is attached */
 	UFUNCTION(BlueprintPure, Category="Stalker")
 	bool HasBrassPlate() const { return bPlated; }
+
+	/** Stops the stalker until Awaken is called; strikes and thunder no longer affect it */
+	UFUNCTION(BlueprintCallable, Category="Stalker")
+	void Freeze();
+
+	/** Unfreezes the stalker and sets it hunting the player wherever they are */
+	UFUNCTION(BlueprintCallable, Category="Stalker")
+	void Awaken();
 
 protected:
 

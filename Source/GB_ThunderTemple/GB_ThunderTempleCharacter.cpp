@@ -13,6 +13,7 @@
 #include "GB_ThunderTemple.h"
 #include "ThunderCheckpointSubsystem.h"
 #include "ThunderDrum.h"
+#include "BatteryPickup.h"
 #include "Stalker.h"
 #include "EngineUtils.h"
 #include "Engine/Engine.h"
@@ -194,6 +195,16 @@ void AGB_ThunderTempleCharacter::DoCrouchEnd()
 
 void AGB_ThunderTempleCharacter::DoInteract()
 {
+	// the battery is the final goal, so it always wins
+	for (TActorIterator<ABatteryPickup> It(GetWorld()); It; ++It)
+	{
+		if (FVector::Dist2D(It->GetActorLocation(), GetActorLocation()) < InteractRange)
+		{
+			It->Take();
+			return;
+		}
+	}
+
 	// with a plate in hand, a plate-less stalker within reach comes first, since it usually stands at the drum
 	AStalker* Stalker = nullptr;
 	float Best = InteractRange;

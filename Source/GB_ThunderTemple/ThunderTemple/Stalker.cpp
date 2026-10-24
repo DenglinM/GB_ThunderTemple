@@ -180,6 +180,12 @@ float AStalker::WalkTowards(const FVector& Target)
 
 bool AStalker::CanSeePlayer(const ACharacter* Player) const
 {
+	// woken by the final thunder, it no longer needs to see the player
+	if (bRelentless)
+	{
+		return true;
+	}
+
 	if (ActivationArea && !ActivationArea->IsOverlappingActor(Player))
 	{
 		return false;
@@ -214,6 +220,27 @@ void AStalker::OnConstruction(const FTransform& Transform)
 	}
 }
 
+void AStalker::Freeze()
+{
+	UE_LOG(LogTemp, Log, TEXT("Stalker %s: frozen by the discharge"), *GetActorNameOrLabel());
+
+	GetWorldTimerManager().ClearTimer(ResumeTimer);
+	bChasing = false;
+	bInvestigating = false;
+	SetActive(false);
+	bFrozen = true;
+}
+
+void AStalker::Awaken()
+{
+	UE_LOG(LogTemp, Log, TEXT("Stalker %s: woken by the thunder, hunting the player"), *GetActorNameOrLabel());
+
+	bFrozen = false;
+	bRelentless = true;
+	bChasePlayer = true;
+	Resume();
+}
+
 UMaterialInterface* AStalker::GetStateMaterial() const
 {
 	if (!bActive)
@@ -225,6 +252,12 @@ UMaterialInterface* AStalker::GetStateMaterial() const
 
 void AStalker::HearNoise(const FVector& Location)
 {
+	// a frozen or relentless stalker pays no attention to noises
+	if (bFrozen || bRelentless)
+	{
+		return;
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("Stalker %s: heard a noise"), *GetActorNameOrLabel());
 
 	bInvestigating = true;
@@ -292,6 +325,11 @@ void AStalker::HitByLightning()
 
 void AStalker::Resume()
 {
+	if (bFrozen)
+	{
+		return;
+	}
+
 	GetWorldTimerManager().ClearTimer(ResumeTimer);
 	if (!bActive)
 	{
