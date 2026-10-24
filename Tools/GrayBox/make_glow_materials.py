@@ -8,7 +8,8 @@ DIR = "/Game/ThunderTemple/Materials"
 GLOWS = [("MI_GB_Yellow_Glow", "MI_GB_Yellow", 1.5, 1.0, 0.06),
          ("MI_GB_Enemy_Glow", "MI_GB_Enemy", 1.0, 1.0, 0.06),
          ("MI_GB_Blue_EdgeGlow", "MI_GB_Blue", 6.0, 0.0, 0.05),
-         ("MI_GB_BlueBright_Glow", "MI_GB_BlueBright", 0.6, 1.0, 0.06)]
+         ("MI_GB_BlueBright_Glow", "MI_GB_BlueBright", 0.6, 1.0, 0.06),
+         ("MI_GB_Red_Glow", "MI_GB_Red", 0.8, 1.0, 0.06)]
 lines = []
 try:
     eal = unreal.EditorAssetLibrary
