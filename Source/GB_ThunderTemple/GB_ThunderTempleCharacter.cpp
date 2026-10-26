@@ -14,6 +14,9 @@
 #include "ThunderCheckpointSubsystem.h"
 #include "ThunderDrum.h"
 #include "BatteryPickup.h"
+#include "ThunderLoreStone.h"
+#include "ThunderHUD.h"
+#include "GameFramework/PlayerController.h"
 #include "Stalker.h"
 #include "EngineUtils.h"
 #include "Engine/Engine.h"
@@ -195,6 +198,25 @@ void AGB_ThunderTempleCharacter::DoCrouchEnd()
 
 void AGB_ThunderTempleCharacter::DoInteract()
 {
+	// E closes open lore text first, then reads a stone in reach
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (AThunderHUD* HUD = PC ? PC->GetHUD<AThunderHUD>() : nullptr)
+	{
+		if (HUD->CloseLore())
+		{
+			return;
+		}
+
+		for (TActorIterator<AThunderLoreStone> It(GetWorld()); It; ++It)
+		{
+			if (FVector::Dist2D(It->GetActorLocation(), GetActorLocation()) < It->GetReadRadius())
+			{
+				HUD->ToggleLore(*It);
+				return;
+			}
+		}
+	}
+
 	// the battery is the final goal, so it always wins
 	for (TActorIterator<ABatteryPickup> It(GetWorld()); It; ++It)
 	{

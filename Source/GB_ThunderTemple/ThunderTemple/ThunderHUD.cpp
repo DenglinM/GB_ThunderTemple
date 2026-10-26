@@ -3,6 +3,8 @@
 
 #include "ThunderHUD.h"
 #include "GB_ThunderTempleCharacter.h"
+#include "ThunderLoreStone.h"
+#include "EngineUtils.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "GameFramework/PlayerController.h"
@@ -143,6 +145,36 @@ void AThunderHUD::BeginPlay()
 			]
 		];
 
+	// lore text in a dark panel across the lower part of the screen
+	TSharedRef<STextBlock> LoreTitleText = SNew(STextBlock)
+		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 26))
+		.ColorAndOpacity(Battery);
+	TSharedRef<STextBlock> LoreBodyText = SNew(STextBlock)
+		.Font(FCoreStyle::GetDefaultFontStyle("Regular", 20))
+		.ColorAndOpacity(FLinearColor::White)
+		.AutoWrapText(true)
+		.LineHeightPercentage(1.15f);
+	LoreTitle = LoreTitleText;
+	LoreBody = LoreBodyText;
+	LorePanel = SNew(SBox).WidthOverride(980.0f)
+		[
+			SNew(SBorder).BorderImage(White()).BorderBackgroundColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.72f)).Padding(FMargin(32.0f, 24.0f))
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, 12.0f) [ LoreTitleText ]
+				+ SVerticalBox::Slot().AutoHeight() [ LoreBodyText ]
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right).Padding(0.0f, 16.0f, 0.0f, 0.0f)
+				[
+					Label(TEXT("[E] \u5173\u95ED"), 14)
+				]
+			]
+		];
+
+	ReadPrompt = SNew(SBorder).BorderImage(White()).BorderBackgroundColor(Panel).Padding(FMargin(14.0f, 8.0f))
+		[
+			Label(TEXT("[E] \u9605\u8BFB"), 18)
+		];
+
 	Root = SNew(SOverlay)
 		// level title near the top
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(0.0f, 140.0f, 0.0f, 0.0f)
@@ -170,6 +202,14 @@ void AThunderHUD::BeginPlay()
 				]
 			]
 		]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(0.0f, 0.0f, 0.0f, 90.0f)
+		[
+			LorePanel.ToSharedRef()
+		]
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center).Padding(0.0f, 220.0f, 0.0f, 0.0f)
+		[
+			ReadPrompt.ToSharedRef()
+		]
 		+ SOverlay::Slot()
 		[
 			CompleteScreen.ToSharedRef()
@@ -177,6 +217,8 @@ void AThunderHUD::BeginPlay()
 
 	PlateMarker->SetVisibility(EVisibility::Collapsed);
 	BatteryMarker->SetVisibility(EVisibility::Collapsed);
+	LorePanel->SetVisibility(EVisibility::Collapsed);
+	ReadPrompt->SetVisibility(EVisibility::Collapsed);
 
 	GEngine->GameViewport->AddViewportWidgetContent(SNew(SWeakWidget).PossiblyNullContent(Root), 10);
 }
@@ -212,6 +254,61 @@ void AThunderHUD::Tick(float DeltaSeconds)
 	PlateMarker->SetVisibility(Plates > 0 ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
 	PlateCount->SetText(FText::FromString(FString::Printf(TEXT("x%d"), Plates)));
 	BatteryMarker->SetVisibility(Player && Player->HasBattery() ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
+
+	// walking away from an open stone closes its text
+	if (OpenStone.IsValid() && (!Player || FVector::Dist2D(OpenStone->GetActorLocation(), Player->GetActorLocation()) > OpenStone->GetReadRadius() * 1.5f))
+	{
+		CloseLore();
+	}
+
+	// hint while a stone is in reach and nothing is open
+	bool bStoneInReach = false;
+	if (Player && !OpenStone.IsValid())
+	{
+		for (TActorIterator<AThunderLoreStone> It(GetWorld()); It; ++It)
+		{
+			if (FVector::Dist2D(It->GetActorLocation(), Player->GetActorLocation()) < It->GetReadRadius())
+			{
+				bStoneInReach = true;
+				break;
+			}
+		}
+	}
+	ReadPrompt->SetVisibility(bStoneInReach ? EVisibility::HitTestInvisible : EVisibility::Collapsed);
+}
+
+bool AThunderHUD::ToggleLore(AThunderLoreStone* Stone)
+{
+	if (!LorePanel.IsValid() || !Stone)
+	{
+		return false;
+	}
+
+	if (OpenStone.Get() == Stone)
+	{
+		CloseLore();
+		return false;
+	}
+
+	OpenStone = Stone;
+	LoreTitle->SetText(Stone->GetTitle());
+	LoreTitle->SetVisibility(Stone->GetTitle().IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible);
+	// a typed "\n" also breaks the line, for text pasted in as a single line
+	LoreBody->SetText(FText::FromString(Stone->GetMessage().ToString().Replace(TEXT("\\n"), TEXT("\n"))));
+	LorePanel->SetVisibility(EVisibility::HitTestInvisible);
+	return true;
+}
+
+bool AThunderHUD::CloseLore()
+{
+	if (!OpenStone.IsValid())
+	{
+		return false;
+	}
+
+	OpenStone.Reset();
+	LorePanel->SetVisibility(EVisibility::Collapsed);
+	return true;
 }
 
 void AThunderHUD::ShowComplete()

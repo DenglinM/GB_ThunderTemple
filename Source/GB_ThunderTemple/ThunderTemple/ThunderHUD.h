@@ -10,11 +10,12 @@
 class SWidget;
 class SBox;
 class STextBlock;
+class AThunderLoreStone;
 
 /**
  *  Gray-box game UI, built in Slate so it needs no widget assets:
  *  the level title at the start, brass plate and battery markers in the top-right corner,
- *  and a completion screen with Restart and Quit buttons.
+ *  lore stone text, and a completion screen with Restart and Quit buttons.
  */
 UCLASS()
 class AThunderHUD : public AHUD
@@ -53,6 +54,21 @@ protected:
 	/** Completion screen */
 	TSharedPtr<SWidget> CompleteScreen;
 
+	/** Panel showing a lore stone's text */
+	TSharedPtr<SWidget> LorePanel;
+
+	/** Lore stone heading */
+	TSharedPtr<STextBlock> LoreTitle;
+
+	/** Lore stone text */
+	TSharedPtr<STextBlock> LoreBody;
+
+	/** Hint shown while a lore stone is in reach */
+	TSharedPtr<SWidget> ReadPrompt;
+
+	/** Stone whose text is open */
+	TWeakObjectPtr<AThunderLoreStone> OpenStone;
+
 	/** Time since the game started */
 	float Age = 0.0f;
 
@@ -62,6 +78,12 @@ public:
 
 	/** Fades the title and refreshes the inventory markers */
 	virtual void Tick(float DeltaSeconds) override;
+
+	/** Opens the stone's text, or closes it if it is already open; returns true if a panel is now open */
+	bool ToggleLore(AThunderLoreStone* Stone);
+
+	/** Closes the lore panel; returns true if one was open */
+	bool CloseLore();
 
 	/** Shows the completion screen and hands the mouse to the player */
 	UFUNCTION(BlueprintCallable, Category="UI")
