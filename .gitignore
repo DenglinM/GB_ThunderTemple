@@ -50,3 +50,6 @@ UpgradeLog.htm
 /Content/Movies/
 /Content/Widgets/
 *.udatasmithbak
+
+# packaged Windows builds
+/Build_Windows/
