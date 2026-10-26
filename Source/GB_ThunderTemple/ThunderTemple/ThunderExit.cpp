@@ -3,6 +3,7 @@
 
 #include "ThunderExit.h"
 #include "Stalker.h"
+#include "ThunderHUD.h"
 #include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -140,10 +141,11 @@ void AThunderExit::Clear()
 		{
 			Pawn->DisableInput(PC);
 		}
-	}
 
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 600.0f, FColor::Cyan, TEXT("THUNDER TEMPLE CLEARED"), true, FVector2D(3.0f, 3.0f));
+		// completion screen with Restart and Quit
+		if (AThunderHUD* HUD = PC->GetHUD<AThunderHUD>())
+		{
+			HUD->ShowComplete();
+		}
 	}
 }

@@ -201,6 +201,7 @@ void AGB_ThunderTempleCharacter::DoInteract()
 		if (FVector::Dist2D(It->GetActorLocation(), GetActorLocation()) < InteractRange)
 		{
 			It->Take();
+			bHasBattery = true;
 			return;
 		}
 	}

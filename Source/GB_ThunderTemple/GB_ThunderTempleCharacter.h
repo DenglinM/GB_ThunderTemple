@@ -65,6 +65,10 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Inventory")
 	int32 BrassPlates = 0;
 
+	/** True once the battery has been taken from the main rod */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Inventory")
+	bool bHasBattery = false;
+
 public:
 
 	/** Constructor */
@@ -130,6 +134,10 @@ public:
 	/** Number of brass plates carried */
 	UFUNCTION(BlueprintPure, Category="Inventory")
 	int32 GetBrassPlates() const { return BrassPlates; }
+
+	/** True once the battery has been taken */
+	UFUNCTION(BlueprintPure, Category="Inventory")
+	bool HasBattery() const { return bHasBattery; }
 
 public:
 
