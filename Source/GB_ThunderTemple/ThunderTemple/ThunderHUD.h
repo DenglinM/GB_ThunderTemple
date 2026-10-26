@@ -72,6 +72,9 @@ protected:
 	/** Time since the game started */
 	float Age = 0.0f;
 
+	/** Whether on-screen debug messages were on before this HUD hid them */
+	bool bDebugMessagesWereEnabled = true;
+
 public:
 
 	AThunderHUD();

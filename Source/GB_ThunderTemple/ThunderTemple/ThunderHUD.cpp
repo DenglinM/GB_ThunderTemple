@@ -80,6 +80,10 @@ void AThunderHUD::BeginPlay()
 		return;
 	}
 
+	// players see this UI only, not the engine's debug text in the top-left corner
+	bDebugMessagesWereEnabled = GEngine->bEnableOnScreenDebugMessages;
+	GEngine->bEnableOnScreenDebugMessages = false;
+
 	using namespace ThunderHUD;
 
 	// brass plate: a flat brass square and a count
@@ -230,6 +234,12 @@ void AThunderHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		GEngine->GameViewport->RemoveViewportWidgetContent(Root.ToSharedRef());
 	}
 	Root.Reset();
+
+	// the editor shares GEngine with play sessions, so give the debug text back
+	if (GEngine)
+	{
+		GEngine->bEnableOnScreenDebugMessages = bDebugMessagesWereEnabled;
+	}
 
 	Super::EndPlay(EndPlayReason);
 }
